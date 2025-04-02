@@ -32,9 +32,9 @@ export const authOptions: NextAuthOptions = {
 
           if (isPasswordValid) {
             // Cualquier objeto devuelto aquí se guardará en el `user` del token JWT
-            // Devolvemos solo la información necesaria y segura
+            // Convertimos el ID numérico a string para compatibilidad con NextAuth
             return {
-              id: user.id,
+              id: String(user.id),  // <- Convertimos a string para NextAuth
               name: user.name,
               username: user.username,
               // No incluyas la contraseña aquí!
@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
       // Cuando se crea el JWT por primera vez (después del authorize)
       // añadimos el ID de usuario y el username al token.
       if (user) {
-        token.id = user.id;
+        token.id = user.id;  // Ya es string por la conversión en authorize
         token.username = (user as any).username; // Hacemos type assertion si es necesario
       }
       return token;
@@ -70,7 +70,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Añadimos el ID y el username del token a la sesión del cliente
       if (token && session.user) {
-        (session.user as any).id = token.id;
+        (session.user as any).id = token.id;  // Mantiene el formato string
         (session.user as any).username = token.username;
       }
       return session;
