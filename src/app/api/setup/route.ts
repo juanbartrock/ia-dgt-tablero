@@ -4,7 +4,20 @@ import bcrypt from 'bcryptjs';
 
 export async function GET() {
   try {
-    // Limpiar tablas relacionadas primero
+    // Verificar si ya existe un usuario admin
+    const existingAdmin = await prisma.user.findUnique({
+      where: { username: 'admin' }
+    });
+
+    if (existingAdmin) {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'El usuario admin ya existe',
+        userExists: true
+      }, { status: 200 });
+    }
+
+    // Solo si no existe el usuario admin, limpiamos tablas relacionadas
     try {
       await prisma.$executeRaw`TRUNCATE TABLE notification_views, accounts, sessions, notification CASCADE;`;
       await prisma.$executeRaw`TRUNCATE TABLE users CASCADE;`;
@@ -31,8 +44,8 @@ export async function GET() {
       user: {
         id: newUser.id,
         username: newUser.username,
-        // Contraseña segura para mostrar en la respuesta
-        password: 'admin123'
+        // No mostrar contraseña en texto plano en respuesta
+        passwordHint: 'admin123 (Solo mostrado en configuración inicial)'
       }
     });
   } catch (error) {

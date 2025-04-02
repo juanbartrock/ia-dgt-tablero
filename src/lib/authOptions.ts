@@ -3,20 +3,21 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 // Eliminamos el adaptador de Prisma para evitar problemas de compatibilidad
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { User } from '@prisma/client';
 
 // Extendemos el tipo User de NextAuth para incluir username
 declare module 'next-auth' {
   interface User {
-    username?: string;
+    id: number;
+    username: string;
+    name?: string | null;
   }
   
   interface Session {
     user: {
-      id: string;
+      id: number;
+      username: string;
       name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      username?: string;
     }
   }
 }
@@ -24,8 +25,8 @@ declare module 'next-auth' {
 // También necesitamos extender el tipo JWT
 declare module 'next-auth/jwt' {
   interface JWT {
-    id?: string;
-    username?: string;
+    id: number;
+    username: string;
   }
 }
 
@@ -34,14 +35,14 @@ export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       // El nombre que se mostrará en el formulario de inicio de sesión (si usas uno autogenerado)
-      name: 'Credentials',
+      name: 'Credenciales',
       // `credentials` se usa para generar un formulario en la página de inicio de sesión.
       // Puedes especificar los campos que esperas que se envíen.
       credentials: {
-        username: { label: "Username", type: "text", placeholder: "tu_usuario" },
-        password: { label: "Password", type: "password" }
+        username: { label: "Usuario", type: "text", placeholder: "tu_usuario" },
+        password: { label: "Contraseña", type: "password" }
       },
-      async authorize(credentials, req) {
+      async authorize(credentials: Record<"username" | "password", string> | undefined) {
         if (!credentials?.username || !credentials?.password) {
           return null;
         }
@@ -70,9 +71,9 @@ export const authOptions: NextAuthOptions = {
             // Construimos un objeto de usuario simple para el token JWT
             // Convertimos explícitamente el ID a string para evitar problemas de tipo
             return {
-              id: String(user.id), // Forzamos conversión a string
-              name: user.name,
-              username: user.username
+              id: user.id,
+              username: user.username,
+              name: user.name
             };
           } else {
             console.error('Contraseña incorrecta para:', credentials.username);
@@ -92,23 +93,20 @@ export const authOptions: NextAuthOptions = {
   },
   // Callbacks para personalizar el comportamiento
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user?: any }) {
       // Cuando se crea el JWT por primera vez (después del authorize)
       // añadimos el ID de usuario y el username al token.
       if (user) {
         token.id = user.id;
-        // Usamos any para evitar errores de tipo
-        token.username = (user as any).username;
+        token.username = user.username;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       // Añadimos el ID y el username del token a la sesión del cliente
-      if (token && session.user) {
-        // Conversión explícita a string para evitar error de tipo
-        session.user.id = String(token.id);
-        // Usamos any para evitar errores de tipo
-        (session.user as any).username = (token as any).username;
+      if (token) {
+        session.user.id = token.id as number;
+        session.user.username = token.username as string;
       }
       return session;
     },
