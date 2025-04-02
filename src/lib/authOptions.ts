@@ -1,11 +1,9 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma'; // Nuestra instancia de Prisma
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma), // Usamos el adaptador de Prisma
   providers: [
     CredentialsProvider({
       // El nombre que se mostrará en el formulario de inicio de sesión (si usas uno autogenerado)
@@ -55,6 +53,7 @@ export const authOptions: NextAuthOptions = {
   // Configuración de la sesión
   session: {
     strategy: 'jwt', // Usaremos JWT para las sesiones
+    maxAge: 30 * 24 * 60 * 60, // 30 días
   },
   // Callbacks para personalizar el comportamiento
   callbacks: {
