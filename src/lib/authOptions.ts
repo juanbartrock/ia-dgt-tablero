@@ -1,11 +1,11 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma } from '@/lib/prisma'; // Nuestra instancia de Prisma
+// Eliminamos el adaptador de Prisma para evitar problemas de compatibilidad
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma), // Usamos el adaptador de Prisma
+  // Quitamos el adaptador para usar solo JWT
   providers: [
     CredentialsProvider({
       // El nombre que se mostrará en el formulario de inicio de sesión (si usas uno autogenerado)
@@ -18,35 +18,43 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         if (!credentials?.username || !credentials?.password) {
-          return null; // No se proporcionaron credenciales
+          return null;
         }
 
-        // Busca al usuario en tu base de datos
-        const user = await prisma.user.findUnique({
-          where: { username: credentials.username },
-        });
+        try {
+          // Busca al usuario por nombre de usuario (no por ID)
+          const user = await prisma.user.findUnique({
+            where: { username: credentials.username },
+            // Seleccionamos solo los campos que necesitamos, sin incluir el ID problemático
+            select: {
+              id: true,
+              username: true,
+              password: true,
+              name: true
+            }
+          });
 
-        if (user && user.password) {
-          // Compara la contraseña proporcionada con la hasheada en la BD
+          if (!user || !user.password) {
+            console.error('Usuario no encontrado:', credentials.username);
+            return null;
+          }
+
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
           if (isPasswordValid) {
-            // Cualquier objeto devuelto aquí se guardará en el `user` del token JWT
-            // El ID ya es string, no necesitamos convertirlo
+            // Construimos un objeto de usuario simple para el token JWT
+            // Convertimos explícitamente el ID a string para evitar problemas de tipo
             return {
-              id: user.id,
+              id: String(user.id), // Forzamos conversión a string
               name: user.name,
-              username: user.username,
-              // No incluyas la contraseña aquí!
+              username: user.username
             };
           } else {
-            // Contraseña incorrecta
-            console.error('Intento de inicio de sesión fallido (contraseña incorrecta) para:', credentials.username);
+            console.error('Contraseña incorrecta para:', credentials.username);
             return null;
           }
-        } else {
-          // Usuario no encontrado
-          console.error('Intento de inicio de sesión fallido (usuario no encontrado): ', credentials.username);
+        } catch (error) {
+          console.error('Error en autenticación:', error);
           return null;
         }
       }
@@ -64,15 +72,15 @@ export const authOptions: NextAuthOptions = {
       // añadimos el ID de usuario y el username al token.
       if (user) {
         token.id = user.id;
-        token.username = (user as any).username; // Hacemos type assertion si es necesario
+        token.username = user.username;
       }
       return token;
     },
     async session({ session, token }) {
       // Añadimos el ID y el username del token a la sesión del cliente
       if (token && session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).username = token.username;
+        session.user.id = token.id;
+        session.user.username = token.username as string;
       }
       return session;
     },
