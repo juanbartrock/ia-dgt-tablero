@@ -6,11 +6,23 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma = 
-  global.prisma ||
-  new PrismaClient({
-    // Opcional: Configuraciones de logging para desarrollo
-    // log: ['query', 'info', 'warn', 'error'],
-  });
+// Crear un cliente mock que no haga nada en caso de que queramos saltar la inicialización
+const mockPrismaClient = new Proxy({} as PrismaClient, {
+  get: () => async () => { return { id: 'mock-data' }; }
+});
 
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma; 
+// Verificar si debemos saltarnos la inicialización de Prisma
+const shouldSkipPrismaInit = process.env.SKIP_PRISMA_INIT === 'true';
+
+export const prisma = 
+  shouldSkipPrismaInit 
+    ? mockPrismaClient 
+    : global.prisma ||
+      new PrismaClient({
+        // Opcional: Configuraciones de logging para desarrollo
+        // log: ['query', 'info', 'warn', 'error'],
+      });
+
+if (process.env.NODE_ENV !== 'production' && !shouldSkipPrismaInit) {
+  global.prisma = prisma as PrismaClient;
+} 

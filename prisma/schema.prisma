@@ -7,9 +7,9 @@ generator client {
 
 datasource db {
   provider          = "postgresql"
-  // Esta URL DEBE configurarse como variable de entorno en Vercel (y localmente si usas .env)
-  url               = env("DATABASE_URL")
-  // Opcional: Si usas Neon con pool de conexiones via Prisma Data Proxy o similares
+  // Cambiado para usar la URL específica de Prisma proporcionada por Neon
+  url               = env("POSTGRES_PRISMA_URL")
+  // Si necesitas usar la conexión sin pool
   // directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
