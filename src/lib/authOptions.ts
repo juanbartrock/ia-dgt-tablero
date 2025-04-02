@@ -4,6 +4,23 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
+// Extendemos el tipo User de NextAuth para incluir username
+declare module 'next-auth' {
+  interface User {
+    username?: string;
+  }
+  
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      username?: string;
+    }
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   // Quitamos el adaptador para usar solo JWT
   providers: [
@@ -72,7 +89,8 @@ export const authOptions: NextAuthOptions = {
       // añadimos el ID de usuario y el username al token.
       if (user) {
         token.id = user.id;
-        token.username = user.username;
+        // Usamos any para evitar errores de tipo
+        token.username = (user as any).username;
       }
       return token;
     },
@@ -80,7 +98,8 @@ export const authOptions: NextAuthOptions = {
       // Añadimos el ID y el username del token a la sesión del cliente
       if (token && session.user) {
         session.user.id = token.id;
-        session.user.username = token.username as string;
+        // Usamos any para evitar errores de tipo
+        (session.user as any).username = (token as any).username;
       }
       return session;
     },
