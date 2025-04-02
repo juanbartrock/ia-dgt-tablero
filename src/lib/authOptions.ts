@@ -21,6 +21,14 @@ declare module 'next-auth' {
   }
 }
 
+// También necesitamos extender el tipo JWT
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string;
+    username?: string;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   // Quitamos el adaptador para usar solo JWT
   providers: [
@@ -97,7 +105,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Añadimos el ID y el username del token a la sesión del cliente
       if (token && session.user) {
-        session.user.id = token.id;
+        // Conversión explícita a string para evitar error de tipo
+        session.user.id = String(token.id);
         // Usamos any para evitar errores de tipo
         (session.user as any).username = (token as any).username;
       }
