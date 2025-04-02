@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  // Esta URL DEBE configurarse como variable de entorno en Vercel (y localmente si usas .env)
+  url               = env("DATABASE_URL")
+  // Opcional: Si usas Neon con pool de conexiones via Prisma Data Proxy o similares
+  // directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// --- Modelos de la Aplicación --- //
+
+model User {
+  id            String          @id @default(cuid()) // Usar cuid() es común con Prisma y NextAuth
+  username      String          @unique
+  password      String          // La gestión se hace en la lógica de la app, no directamente por NextAuth
+  name          String?
+  createdAt     DateTime        @default(now()) @map("created_at")
+  // Relaciones NextAuth (si usas adaptador Prisma)
+  accounts      Account[]
+  sessions      Session[]
+  // Relaciones propias de la app
+  notifications Notification[] // Notificaciones creadas por este usuario
+  notificationViews NotificationView[] // Vistas de notificación por este usuario
+  visits        Visit[]
+
+  @@map("users")
+}
+
+model Notification {
+  id            Int              @id @default(autoincrement())
+  message       String
+  timestamp     DateTime         @default(now())
+  createdById   String           @map("created_by_id")
+  createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdByName String           @map("created_by_name")
+  status        String           @default("active")
+  views         NotificationView[]
+
+  @@map("notification")
+}
+
+model NotificationView {
+  id             Int          @id @default(autoincrement())
+  notificationId Int          @map("notification_id")
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt       DateTime     @default(now()) @map("viewed_at")
+
+  @@unique([notificationId, userId]) // Un usuario solo ve una notificación una vez
+  @@map("notification_views")
+}
+
+model Task {
+  id            Int          @id @default(autoincrement())
+  description   String
+  status        String       @default("Pendiente")
+  responsable   String?
+  linkedAreas  String[]     @map("linked_areas")
+  importantDate DateTime?    @map("important_date") @db.Date
+  priority      String       @default("Media")
+  highlighted   Boolean      @default(false)
+  comment       String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  attachments   Attachment[]
+
+  @@map("tasks")
+}
+
+model Attachment {
+  id        String   @id @default(uuid()) // Cambiado a uuid() como en tu DDL
+  taskId    Int      @map("task_id")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName  String   @map("file_name")
+  fileUrl   String   @map("file_url")
+  fileSize  Int      @map("file_size")
+  mimeType  String   @map("mime_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("attachments")
+}
+
+model Visit {
+  id        Int      @id @default(autoincrement())
+  userId    String?  @map("user_id") // Nullable si visitas pueden ser anónimas
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  username  String?
+  userName  String?  @map("user_name")
+  timestamp DateTime @default(now())
+
+  @@map("visits")
+}
+
+// --- Modelos Requeridos por NextAuth Prisma Adapter --- //
+// Estos son necesarios si usas use('prisma') con NextAuth
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String  @map("user_id")
+  type               String
+  provider           String
+  providerAccountId  String  @map("provider_account_id")
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts") // Opcional: elige un nombre de tabla si quieres
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions") // Opcional: elige un nombre de tabla si quieres
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens") // Opcional: elige un nombre de tabla si quieres
+} 
