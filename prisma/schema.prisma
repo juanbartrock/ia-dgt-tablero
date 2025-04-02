@@ -16,7 +16,7 @@ datasource db {
 // --- Modelos de la Aplicación --- //
 
 model User {
-  id            Int             @id @default(autoincrement())
+  id            String          @id @default(cuid()) // Usar cuid() es común con Prisma y NextAuth
   username      String          @unique
   password      String          // La gestión se hace en la lógica de la app, no directamente por NextAuth
   name          String?
@@ -36,7 +36,7 @@ model Notification {
   id            Int              @id @default(autoincrement())
   message       String
   timestamp     DateTime         @default(now())
-  createdById   Int              @map("created_by_id")
+  createdById   String           @map("created_by_id")
   createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdByName String           @map("created_by_name")
   status        String           @default("active")
@@ -49,7 +49,7 @@ model NotificationView {
   id             Int          @id @default(autoincrement())
   notificationId Int          @map("notification_id")
   notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  userId         Int          @map("user_id")
+  userId         String       @map("user_id")
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   viewedAt       DateTime     @default(now()) @map("viewed_at")
 
@@ -89,7 +89,7 @@ model Attachment {
 
 model Visit {
   id        Int      @id @default(autoincrement())
-  userId    Int?     @map("user_id") // Nullable si visitas pueden ser anónimas
+  userId    String?  @map("user_id") // Nullable si visitas pueden ser anónimas
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   username  String?
   userName  String?  @map("user_name")
@@ -103,7 +103,7 @@ model Visit {
 
 model Account {
   id                 String  @id @default(cuid())
-  userId             Int     @map("user_id")
+  userId             String  @map("user_id")
   type               String
   provider           String
   providerAccountId  String  @map("provider_account_id")
@@ -124,7 +124,7 @@ model Account {
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique @map("session_token")
-  userId       Int      @map("user_id")
+  userId       String   @map("user_id")
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

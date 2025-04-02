@@ -1,9 +1,11 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma'; // Nuestra instancia de Prisma
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma), // Usamos el adaptador de Prisma
   providers: [
     CredentialsProvider({
       // El nombre que se mostrará en el formulario de inicio de sesión (si usas uno autogenerado)
@@ -30,9 +32,9 @@ export const authOptions: NextAuthOptions = {
 
           if (isPasswordValid) {
             // Cualquier objeto devuelto aquí se guardará en el `user` del token JWT
-            // Convertimos el ID numérico a string para compatibilidad con NextAuth
+            // El ID ya es string, no necesitamos convertirlo
             return {
-              id: String(user.id),  // <- Convertimos a string para NextAuth
+              id: user.id,
               name: user.name,
               username: user.username,
               // No incluyas la contraseña aquí!
@@ -61,7 +63,7 @@ export const authOptions: NextAuthOptions = {
       // Cuando se crea el JWT por primera vez (después del authorize)
       // añadimos el ID de usuario y el username al token.
       if (user) {
-        token.id = user.id;  // Ya es string por la conversión en authorize
+        token.id = user.id;
         token.username = (user as any).username; // Hacemos type assertion si es necesario
       }
       return token;
@@ -69,7 +71,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Añadimos el ID y el username del token a la sesión del cliente
       if (token && session.user) {
-        (session.user as any).id = token.id;  // Mantiene el formato string
+        (session.user as any).id = token.id;
         (session.user as any).username = token.username;
       }
       return session;
